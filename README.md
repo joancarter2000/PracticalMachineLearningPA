@@ -9,5 +9,7 @@ There are three files included:
 
 3. project.html 
 
-Somehow my gh-pages branch does not work as it suppose to be. So please just download my html to view it for grading!
+Somehow my gh-pages branch does not work as it suppose to be. 
+
+You can just view the project.md file for grading!
 Thanks!
