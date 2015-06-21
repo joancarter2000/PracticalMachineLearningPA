@@ -1,0 +1,85 @@
+---
+title: "Prediction of exercise quality from activity monitors data"
+date: "June 20 2015"
+output: 
+  html_document:
+    keep_md: true
+---
+
+##Executive Summary
+It is easy to quantify how much exercise a person has finished however it is not a trivial to evaluate how well a person exercises. This report describes a model that predicts the quality of an exercise performed by a human being. The model is built on the data collected from accelerometers on the belt, forearm, arm, and dumbell of 6 participants with an out of sample error about 0.013.
+[Reference](http://groupware.les.inf.puc-rio.br/har) 
+
+##1. Download and read data
+(Thanks for the discussion forum!) The data contain 3 different forms of NA: NA, blank, #DIV/0!. In reading data step, I changed them into one form "NA".
+
+```{r echo=FALSE, cache=TRUE}
+pmltrain<-read.csv("pml-training.csv", sep=",", na.strings=c("NA", "", "#DIV/0!"))
+pmltest<-read.csv("pml-testing.csv", sep=",", na.strings=c("NA", "", "#DIV/0!"))
+
+```
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(caret)
+set.seed(1000)
+
+```
+
+##2. Clean data
+I cleaned the data by 3 steps to only include variables that are potential predictors for modeling. Since a number of columns in pml_training data contain high number of NA value, my first step is to remove these columns (containing more than 80% of NAs) from the data. My second step is to remove redundant variables i.e. the varibales start with "total", which are just addups of other variables and give no new information to the model. The third step is to exclude descriptive variables that are soly used to distinghush different users or to label the time or the features of the exercises. 
+
+```{r, echo=TRUE}
+##step 1: remove the column with over 80% NA
+miss<-colSums(is.na(pmltrain))
+index<-miss>0.8*19622 ##find the columns with over 80% NA
+train<-pmltrain[,which(index==FALSE)]
+##step 2: remove redundant variables
+a<-names(train)
+train2<-train[,-grep("^total",a)]
+##step 3: remove the first 7 varibles of the data that are descriptive.
+names(train2)[1:10]
+trainclean<-train2[,8:56]
+
+```
+
+##3. Split data into training/testing/validation parts
+I split the pml_training data into 3 parts: training (~50%), testing (~20%), validation (30%) for modeling. Validation data is set aside for final test of the model and calculate out of sample error or out of sample accuracy. Training data is used to build the model and the testing data is for testing the model.
+
+```{r, echo=TRUE}
+inTrain = createDataPartition(y=trainclean$classe, p=0.7, list=FALSE)
+validation = trainclean[-inTrain,] ##set aside part of the data for validation
+traintest= trainclean[inTrain,]
+inBuild<-createDataPartition(y=traintest$classe, p=0.7, list=FALSE)
+training<-traintest[inBuild,]
+testing<-traintest[-inBuild,]
+
+```
+
+The final training data contain total 49 variables and among them, there are 48 potential predictors for classe, the outcome variable. In order to assist model selection, i performed a little exploratory data analysis by plotting a scatterplot matrix using the last 10 columns of the training data.
+
+```{r, echo=FALSE}
+pairs(training[, 38:49])
+
+```
+
+From the graph, it is hard to see any linear relationship between the predictors and the outcome variable. So I give up glm/lm model. I actually run the glm model for training data set and the R-squared is less than 0.6 suggesting a poor modle for prediction. I did not show the code to save space. The model I decided to use is random forest.
+
+##4. Build model
+I used train function and the method is random forest (rf). Train control uses the method cross validation (CV). I have tried to use oob instead of cv for train control and it turns out cv parameter gives higher accuracy despite the fact that cv parametere slows down the running time. I also manipulated the number of ntree and found out that the higher number set for ntree, the higher accuracy is achieved. Setting ntree to 500 gives my higher accuracy than setting it to 100, 200, 300 and 400 but the same as setting to 1000. Since ntree=500 setting has shorter running time than 1000, I fixed the parameter at 500.
+
+```{r, echo=TRUE, cache=TRUE, message=FALSE, warning=FALSE}
+##build the model using training data set
+trctrlRF <- trainControl(method="cv", number=3) 
+mod<- train(classe~., method="rf", data=training, ntree=500, trControl=trctrlRF)
+
+##test the model using testing data set
+pred<-predict(mod, testing)
+table(pred, testing$classe)
+
+##validate the model using validation data set
+pred<-predict(mod, validation)
+confusionMatrix(pred, validation$classe)
+
+```
+
+From the test results, my model seems to be a fairly accurate model to predict the quality of the exercise with an out of sample accuracy about 0.987 (out of sample error about 0.013).
+
