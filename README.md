@@ -9,7 +9,7 @@ There are three files included:
 
 3. project.html 
 
-Somehow my gh-pages branch does not work as it suppose to be. 
+Please click the following link to directly view the project.html file online:
 
-You can just view the project.md file for grading!
-Thanks!
+http://joancarter2000.github.io/PracticalMachineLearningPA/project.html
+
